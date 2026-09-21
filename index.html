@@ -190,9 +190,9 @@
                         <p class="text-xs text-slate-500">إدارة جلسات السكشن وتوليد الرمز المباشر ومتابعة البصمة الرقمية للطلاب</p>
                     </div>
                     <div class="flex gap-2">
-                        <button onclick="exportToCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition flex items-center justify-center space-x-2 space-x-reverse">
+                        <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition flex items-center justify-center space-x-2 space-x-reverse">
                             <i class="fa-solid fa-file-excel text-sm"></i>
-                            <span>تصدير الشيت الكامل (Excel / CSV)</span>
+                            <span>تصدير شيت Excel</span>
                         </button>
                     </div>
                 </div>
@@ -837,7 +837,7 @@
         document.getElementById('adminCourse').addEventListener('change', renderAttendanceTable);
         document.getElementById('adminSectionNum').addEventListener('change', renderAttendanceTable);
 
-        window.exportToCSV = function() {
+        window.exportToExcel = function() {
             const selectedCourse = document.getElementById('adminCourse').value;
             const selectedSec = document.getElementById('adminSectionNum').value;
             const records = allAttendanceRecords.filter(r => r.course === selectedCourse && r.sectionNum === selectedSec);
@@ -847,21 +847,78 @@
                 return;
             }
 
-            let csvContent = "\uFEFFم,اسم الطالب,الرقم الجامعي,المادة,رقم السكشن,الوقت,التاريخ,حالة المكان والمسافة,البصمة العتادية\n";
-            records.forEach((r, idx) => {
-                csvContent += `"${idx + 1}","${r.name}","${r.studentId}","${r.course}","سكشن ${r.sectionNum}","${r.timestamp}","${r.date}","${r.distanceFromLab}","${r.hardwareHash || 'N/A'}"\n`;
+            let tableHTML = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <meta charset="utf-8">
+                <!--[if gte mso 9]>
+                <xml>
+                    <x:ExcelWorkbook>
+                        <x:ExcelWorksheets>
+                            <x:ExcelWorksheet>
+                                <x:Name>كشف الحضور</x:Name>
+                                <x:WorksheetOptions>
+                                    <x:DisplayRightToLeft/>
+                                </x:WorksheetOptions>
+                            </x:ExcelWorksheet>
+                        </x:ExcelWorksheets>
+                    </x:ExcelWorkbook>
+                </xml>
+                <![endif]-->
+                <style>
+                    table { border-collapse: collapse; width: 100%; direction: rtl; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
+                    th { background-color: #0f766e; color: #ffffff; border: 1px solid #042f2e; padding: 10px; font-weight: bold; text-align: center; }
+                    td { border: 1px solid #cbd5e1; padding: 8px; text-align: center; mso-number-format:"\\@"; }
+                    tr:nth-child(even) { background-color: #f8fafc; }
+                </style>
+            </head>
+            <body dir="rtl">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الاسم</th>
+                            <th>ID</th>
+                            <th>اسم المادة</th>
+                            <th>رقم السكشن</th>
+                            <th>بصمة الجهاز</th>
+                            <th>تاريخ التسجيل</th>
+                            <th>البعد عن المعيد</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            records.forEach((r) => {
+                tableHTML += `
+                    <tr>
+                        <td>${r.name}</td>
+                        <td style="mso-number-format:'\\@';">${r.studentId}</td>
+                        <td>${r.course}</td>
+                        <td>سكشن ${r.sectionNum}</td>
+                        <td style="mso-number-format:'\\@';">${r.hardwareHash || 'N/A'}</td>
+                        <td>${r.date} ${r.timestamp}</td>
+                        <td>${r.distanceFromLab}</td>
+                    </tr>
+                `;
             });
 
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            tableHTML += `
+                    </tbody>
+                </table>
+            </body>
+            </html>
+            `;
+
+            const blob = new Blob(['\uFEFF' + tableHTML], { type: 'application/vnd.ms-excel;charset=utf-8' });
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
             link.setAttribute("href", url);
-            link.setAttribute("download", `حضور_${selectedCourse}_سكشن_${selectedSec}.csv`);
+            link.setAttribute("download", `حضور_${selectedCourse}_سكشن_${selectedSec}.xls`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
 
-            showToast('تم تصدير ملف الاكسل موثقاً ببصمات الأجهزة والمسافات بنجاح!', 'success');
+            showToast('تم تصدير كشف Excel منسق بنجاح!', 'success');
         };
 
         function connectToCloudBroker() {
